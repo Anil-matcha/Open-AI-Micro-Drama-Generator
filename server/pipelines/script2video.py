@@ -133,7 +133,7 @@ class Script2VideoPipeline:
             "High quality, detailed face, neutral background, studio lighting, "
             "character reference sheet, full face visible."
         )
-        return await self.image_gen.generate_image(prompt, width=512, height=768)
+        return await self.image_gen.generate_image(prompt, aspect_ratio="2:3")
 
     async def _generate_first_frame(
         self,
@@ -177,7 +177,7 @@ class Script2VideoPipeline:
                 print(f"Warning: reference image generation failed, falling back to T2I: {e}")
 
         # Fallback to regular T2I
-        return await self.image_gen.generate_image(full_prompt, width=1920, height=1080)
+        return await self.image_gen.generate_image(full_prompt, aspect_ratio="16:9")
 
     async def _generate_shot_video(
         self, shot: ShotDescription, shot_idx: int, working_dir: str
