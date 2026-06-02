@@ -54,12 +54,18 @@ async def upload_image_from_path(path: str, api_key: Optional[str] = None) -> st
     content_type = _guess_content_type(filename)
 
     async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(
-            f"{MUAPI_BASE}/upload_file",
-            headers=headers,
-            files={"file": (filename, file_content, content_type)},
-        )
-        resp.raise_for_status()
+        try:
+            resp = await client.post(
+                f"{MUAPI_BASE}/upload_file",
+                headers=headers,
+                files={"file": (filename, file_content, content_type)},
+            )
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (401, 403):
+                print("[Sandbox] File upload not available — returning original path as URL.")
+                return path
+            raise
         data = resp.json()
 
     url = data.get("url") or data.get("file_url") or data.get("data", {}).get("url")

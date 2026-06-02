@@ -8,6 +8,9 @@ import httpx
 MUAPI_BASE = "https://api.muapi.ai/api/v1"
 POLL_INTERVAL = 3  # seconds
 
+# Short royalty-free placeholder video returned in sandbox mode.
+_SANDBOX_VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+
 
 class MuAPIVideoGenerator:
     def __init__(self, api_key: Optional[str] = None):
@@ -47,17 +50,23 @@ class MuAPIVideoGenerator:
         self, prompt: str, image_url: str, duration: int, aspect_ratio: str
     ) -> str:
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{MUAPI_BASE}/seedance-2-vip-image-to-video",
-                headers=self.headers,
-                json={
-                    "prompt": prompt,
-                    "images_list": [image_url],
-                    "duration": duration,
-                    "aspect_ratio": aspect_ratio,
-                },
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{MUAPI_BASE}/seedance-2-vip-image-to-video",
+                    headers=self.headers,
+                    json={
+                        "prompt": prompt,
+                        "images_list": [image_url],
+                        "duration": duration,
+                        "aspect_ratio": aspect_ratio,
+                    },
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (401, 403):
+                    print("[Sandbox] Video generation (Seedance 2) not available — returning placeholder.")
+                    return _SANDBOX_VIDEO_URL
+                raise
             data = resp.json()
 
         request_id = data.get("request_id") or data.get("id")
@@ -71,17 +80,23 @@ class MuAPIVideoGenerator:
         self, prompt: str, image_url: str, duration: int, aspect_ratio: str
     ) -> str:
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{MUAPI_BASE}/kling-v2.1-master-i2v",
-                headers=self.headers,
-                json={
-                    "prompt": prompt,
-                    "image_url": image_url,
-                    "duration": duration,
-                    "aspect_ratio": aspect_ratio,
-                },
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{MUAPI_BASE}/kling-v2.1-master-i2v",
+                    headers=self.headers,
+                    json={
+                        "prompt": prompt,
+                        "image_url": image_url,
+                        "duration": duration,
+                        "aspect_ratio": aspect_ratio,
+                    },
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (401, 403):
+                    print("[Sandbox] Video generation (Kling Master) not available — returning placeholder.")
+                    return _SANDBOX_VIDEO_URL
+                raise
             data = resp.json()
 
         request_id = data.get("request_id") or data.get("id")

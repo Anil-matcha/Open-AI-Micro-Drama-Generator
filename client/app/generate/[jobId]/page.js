@@ -21,7 +21,7 @@ export default function GeneratePage() {
   useEffect(() => {
     if (!jobId) return;
 
-    const es = new EventSource(`/api/status/${jobId}`);
+    const es = new EventSource(`http://localhost:8000/api/status/${jobId}`);
     esRef.current = es;
 
     es.onmessage = (e) => {
@@ -72,7 +72,7 @@ export default function GeneratePage() {
               setErrorMsg(data.error || "Unknown error");
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
       es.close();
     };

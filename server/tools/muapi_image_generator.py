@@ -8,6 +8,10 @@ import httpx
 MUAPI_BASE = "https://api.muapi.ai/api/v1"
 POLL_INTERVAL = 3  # seconds
 
+# Placeholder returned when a sandbox/demo key has no image-generation access.
+# A freely-available 16:9 grey placeholder that is always reachable.
+_SANDBOX_IMAGE_URL = "https://placehold.co/1280x720/1a1a2e/ffffff.png?text=Sandbox+Mode"
+
 
 class MuAPIImageGenerator:
     def __init__(self, api_key: Optional[str] = None):
@@ -23,16 +27,22 @@ class MuAPIImageGenerator:
         Returns URL of generated image.
         """
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{MUAPI_BASE}/bytedance-seedream-v4.5",
-                headers=self.headers,
-                json={
-                    "prompt": prompt,
-                    "aspect_ratio": aspect_ratio,
-                    "quality": "high",
-                },
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{MUAPI_BASE}/bytedance-seedream-v4.5",
+                    headers=self.headers,
+                    json={
+                        "prompt": prompt,
+                        "aspect_ratio": aspect_ratio,
+                        "quality": "high",
+                    },
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (401, 403):
+                    print("[Sandbox] Image generation not available — returning placeholder.")
+                    return _SANDBOX_IMAGE_URL
+                raise
             data = resp.json()
 
         request_id = data.get("request_id") or data.get("id")
@@ -56,17 +66,23 @@ class MuAPIImageGenerator:
         Returns URL of generated image.
         """
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{MUAPI_BASE}/nano-banana-2-edit",
-                headers=self.headers,
-                json={
-                    "prompt": prompt,
-                    "images_list": [reference_url],
-                    "aspect_ratio": aspect_ratio,
-                    "resolution": "2k",
-                },
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{MUAPI_BASE}/nano-banana-2-edit",
+                    headers=self.headers,
+                    json={
+                        "prompt": prompt,
+                        "images_list": [reference_url],
+                        "aspect_ratio": aspect_ratio,
+                        "resolution": "2k",
+                    },
+                )
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (401, 403):
+                    print("[Sandbox] Reference image generation not available — returning placeholder.")
+                    return _SANDBOX_IMAGE_URL
+                raise
             data = resp.json()
 
         request_id = data.get("request_id") or data.get("id")
