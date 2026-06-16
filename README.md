@@ -186,7 +186,7 @@ Skips stages 1–3. Starts directly from your provided script.
 
 - Python 3.10+
 - Node.js 18+
-- A [MuAPI](https://muapi.ai) API key
+- A [MuAPI](https://muapi.ai?utm_source=github&utm_medium=readme&utm_campaign=open-ai-micro-drama-generator) API key
 
 ### 1. Clone the repo
 
