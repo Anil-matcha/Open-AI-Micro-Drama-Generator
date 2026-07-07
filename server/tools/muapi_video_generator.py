@@ -38,6 +38,14 @@ class MuAPIVideoGenerator:
         # Seedance 2 VIP supports 4-15s; clamp to valid range
         sd2_duration = max(4, min(15, duration))
 
+        skip_seedance = os.environ.get("SKIP_SEEDANCE", "").lower() in ("true", "1", "yes") or \
+                        os.environ.get("USE_SEEDANCE", "").lower() in ("false", "0", "no")
+
+        if skip_seedance:
+            print("Skipping Seedance 2 VIP, using Kling directly...")
+            kling_duration = 5 if duration <= 7 else 10
+            return await self._kling_master(prompt, image_url, kling_duration, aspect_ratio)
+
         try:
             return await self._seedance2_vip(prompt, image_url, sd2_duration, aspect_ratio)
         except Exception as e:
@@ -49,10 +57,11 @@ class MuAPIVideoGenerator:
     async def _seedance2_vip(
         self, prompt: str, image_url: str, duration: int, aspect_ratio: str
     ) -> str:
+        model = os.environ.get("SEEDANCE_MODEL", "seedance-2-vip-image-to-video")
         async with httpx.AsyncClient(timeout=60) as client:
             try:
                 resp = await client.post(
-                    f"{MUAPI_BASE}/seedance-2-vip-image-to-video",
+                    f"{MUAPI_BASE}/{model}",
                     headers=self.headers,
                     json={
                         "prompt": prompt,
@@ -79,10 +88,11 @@ class MuAPIVideoGenerator:
     async def _kling_master(
         self, prompt: str, image_url: str, duration: int, aspect_ratio: str
     ) -> str:
+        model = os.environ.get("KLING_MODEL", "kling-v2.1-master-i2v")
         async with httpx.AsyncClient(timeout=60) as client:
             try:
                 resp = await client.post(
-                    f"{MUAPI_BASE}/kling-v2.1-master-i2v",
+                    f"{MUAPI_BASE}/{model}",
                     headers=self.headers,
                     json={
                         "prompt": prompt,
