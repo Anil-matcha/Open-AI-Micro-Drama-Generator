@@ -26,10 +26,11 @@ class MuAPIImageGenerator:
         lighting. Superior to flux-dev for micro-drama character sheets.
         Returns URL of generated image.
         """
+        model = os.environ.get("PORTRAIT_MODEL", "bytedance-seedream-v4.5")
         async with httpx.AsyncClient(timeout=60) as client:
             try:
                 resp = await client.post(
-                    f"{MUAPI_BASE}/bytedance-seedream-v4.5",
+                    f"{MUAPI_BASE}/{model}",
                     headers=self.headers,
                     json={
                         "prompt": prompt,
@@ -65,10 +66,11 @@ class MuAPIImageGenerator:
         giving strong visual consistency across shots.
         Returns URL of generated image.
         """
+        model = os.environ.get("FRAME_MODEL", "nano-banana-2-edit")
         async with httpx.AsyncClient(timeout=60) as client:
             try:
                 resp = await client.post(
-                    f"{MUAPI_BASE}/nano-banana-2-edit",
+                    f"{MUAPI_BASE}/{model}",
                     headers=self.headers,
                     json={
                         "prompt": prompt,

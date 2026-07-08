@@ -32,9 +32,10 @@ class MuAPILLM:
         if system_prompt:
             payload["system_prompt"] = system_prompt
 
+        model = os.environ.get("LLM_MODEL", "claude-sonnet-4-6")
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{MUAPI_BASE}/claude-sonnet-4-6",
+                f"{MUAPI_BASE}/{model}",
                 headers=self.headers,
                 json=payload,
             )
