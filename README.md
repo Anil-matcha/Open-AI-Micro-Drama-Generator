@@ -45,6 +45,7 @@ Type an idea. MicroDrama AI autonomously handles everything: story development, 
 - [Clip-Anything](https://github.com/SamurAIGPT/Clip-Anything) — Clip any moment from your AI drama with text prompts
 - [AI-Faceless-Video-Generator](https://github.com/SamurAIGPT/AI-Faceless-Video-Generator) — Generate faceless AI videos for your drama channel
 - [awesome-ai-video-models](https://github.com/Anil-matcha/awesome-ai-video-models) — compare AI video models by API, price & speed
+- [ai-creator-academy](https://github.com/Anil-matcha/ai-creator-academy) — free curriculum teaching creators how to monetize AI micro-dramas and video content
 
 ## 🎥 Demo Video
 
