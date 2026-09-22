@@ -3,7 +3,7 @@ import os
 from typing import List
 
 from interfaces.character import CharacterInScene
-from tools.muapi_llm import MuAPILLM
+from tools.agnes_llm import AgnesLLM
 
 _FALLBACK_CHARACTERS = json.dumps({
     "characters": [
@@ -26,7 +26,7 @@ _FALLBACK_CHARACTERS = json.dumps({
 
 class CharacterExtractor:
     def __init__(self):
-        self.llm = MuAPILLM()
+        self.llm = AgnesLLM()
 
     async def extract_characters(self, script: str) -> List[CharacterInScene]:
         system_prompt = (
@@ -59,7 +59,7 @@ Rules:
 - If no appearance is described, invent plausible details"""
 
         raw = await self.llm.complete(
-            prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_CHARACTERS
+            prompt, system_prompt=system_prompt, timeout=300, fallback=_FALLBACK_CHARACTERS
         )
         raw = raw.strip()
         if raw.startswith("```"):

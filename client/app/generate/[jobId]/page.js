@@ -14,7 +14,7 @@ export default function GeneratePage() {
   const [videoUrl, setVideoUrl] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [progress, setProgress] = useState(0);
-  const [currentMessage, setCurrentMessage] = useState("Starting pipeline...");
+  const [currentMessage, setCurrentMessage] = useState("Đang khởi động quy trình...");
   const [logs, setLogs] = useState([]);
   const esRef = useRef(null);
 
@@ -44,21 +44,20 @@ export default function GeneratePage() {
           setProgress(100);
           setStatus("completed");
           setVideoUrl(event.video_url);
-          setCurrentMessage("Video generation complete!");
+          setCurrentMessage("Hoàn tất tạo video!");
           es.close();
         } else if (event.type === "error") {
           setStatus("failed");
-          setErrorMsg(event.message || "Generation failed");
-          setCurrentMessage("Generation failed");
+          setErrorMsg(event.message || "Tạo video thất bại");
+          setCurrentMessage("Tạo video thất bại");
           es.close();
         }
       } catch (err) {
-        console.error("Failed to parse SSE event:", err);
+        console.error("Không giải được sự kiện SSE:", err);
       }
     };
 
     es.onerror = () => {
-      // If SSE drops after completion it's fine; otherwise check job result
       if (status !== "completed") {
         fetch(`/api/result/${jobId}`)
           .then((r) => r.json())
@@ -69,10 +68,10 @@ export default function GeneratePage() {
               setProgress(100);
             } else if (data.status === "failed") {
               setStatus("failed");
-              setErrorMsg(data.error || "Unknown error");
+              setErrorMsg(data.error || "Lỗi không xác định");
             }
           })
-          .catch(() => { });
+          .catch(() => {});
       }
       es.close();
     };
@@ -82,83 +81,83 @@ export default function GeneratePage() {
     };
   }, [jobId]);
 
+  const badge = {
+    running: {
+      bg: "rgba(255, 107, 53, 0.12)",
+      border: "rgba(255, 107, 53, 0.4)",
+      color: "var(--accent)",
+      dot: "var(--accent)",
+      label: "Đang sản xuất",
+      pulse: true,
+    },
+    completed: {
+      bg: "rgba(34, 197, 94, 0.12)",
+      border: "rgba(34, 197, 94, 0.4)",
+      color: "#4ade80",
+      dot: "#22c55e",
+      label: "Bản cuối",
+      pulse: false,
+    },
+    failed: {
+      bg: "rgba(255, 59, 47, 0.12)",
+      border: "rgba(255, 59, 47, 0.4)",
+      color: "#ff8a7a",
+      dot: "var(--accent-2)",
+      label: "Đã dừng",
+      pulse: false,
+    },
+  }[status];
+
   return (
     <main
       className="min-h-screen"
-      style={{ backgroundColor: "#0a0a0f" }}
+      style={{ backgroundColor: "var(--bg)" }}
     >
       {/* Top bar */}
       <div
         className="sticky top-0 z-10 px-6 py-4 flex items-center gap-4"
         style={{
-          backgroundColor: "rgba(10, 10, 15, 0.9)",
+          backgroundColor: "rgba(11, 10, 8, 0.88)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #1a1a26",
+          borderBottom: "1px solid var(--line)",
         }}
       >
         <Link
           href="/"
           className="flex items-center gap-2 text-sm transition-colors"
-          style={{ color: "#6b7280" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#a78bfa")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
+          style={{ color: "var(--ink-soft)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-soft)")}
         >
           <ArrowLeft size={16} />
-          New video
+          Phim mới
         </Link>
-        <div
-          className="h-4 w-px"
-          style={{ backgroundColor: "#22223a" }}
-        />
-        <span className="text-sm" style={{ color: "#4b5563" }}>
-          Job: <span style={{ color: "#7c3aed", fontFamily: "monospace" }}>{jobId}</span>
+        <div className="h-4 w-px" style={{ backgroundColor: "var(--line)" }} />
+        <span className="font-mono text-sm" style={{ color: "var(--ink-faint)" }}>
+          Job · <span style={{ color: "var(--accent)" }}>{jobId}</span>
         </span>
 
-        {/* Status badge */}
         <div className="ml-auto">
-          {status === "running" && (
+          <span
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+            style={{
+              backgroundColor: badge.bg,
+              border: `1px solid ${badge.border}`,
+              color: badge.color,
+            }}
+          >
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(234, 179, 8, 0.15)",
-                border: "1px solid rgba(234, 179, 8, 0.3)",
-                color: "#fde047",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              Generating
-            </span>
-          )}
-          {status === "completed" && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(34, 197, 94, 0.15)",
-                border: "1px solid rgba(34, 197, 94, 0.3)",
-                color: "#86efac",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              Complete
-            </span>
-          )}
-          {status === "failed" && (
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: "rgba(239, 68, 68, 0.15)",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                color: "#fca5a5",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              Failed
-            </span>
-          )}
+              className={`w-2 h-2 rounded-full ${
+                badge.pulse ? "rec-dot" : ""
+              }`}
+              style={{ backgroundColor: badge.dot }}
+            />
+            {badge.label}
+          </span>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-3xl mx-auto px-6 py-10">
         {/* Result */}
         {status === "completed" && videoUrl && (
           <div className="mb-10 animate-slide-up">
@@ -171,14 +170,17 @@ export default function GeneratePage() {
           <div
             className="mb-10 p-5 rounded-2xl animate-slide-up"
             style={{
-              backgroundColor: "rgba(239, 68, 68, 0.08)",
-              border: "1px solid rgba(239, 68, 68, 0.25)",
+              backgroundColor: "rgba(255, 59, 47, 0.08)",
+              border: "1px solid rgba(255, 59, 47, 0.35)",
             }}
           >
-            <p className="text-sm font-medium mb-1" style={{ color: "#fca5a5" }}>
-              Generation Failed
+            <p
+              className="font-serif text-sm font-semibold mb-1"
+              style={{ color: "var(--accent-2)" }}
+            >
+              Sản xuất bị dừng
             </p>
-            <p className="text-sm" style={{ color: "#9ca3af" }}>
+            <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
               {errorMsg}
             </p>
           </div>

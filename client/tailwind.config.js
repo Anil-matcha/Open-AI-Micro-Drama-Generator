@@ -8,35 +8,43 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#0a0a0f",
-        surface: "#12121a",
-        "surface-2": "#1a1a26",
-        "surface-3": "#22223a",
-        accent: "#7c3aed",
-        "accent-light": "#a78bfa",
-        "accent-glow": "rgba(124, 58, 237, 0.3)",
-        muted: "#6b7280",
-        "muted-2": "#4b5563",
+        bg: "#0b0a08",
+        "bg-2": "#110f0c",
+        card: "#141210",
+        "card-2": "#1a1712",
+        line: "#2a2721",
+        ink: "#f5f1ea",
+        "ink-soft": "#a89f8f",
+        "ink-faint": "#6b6558",
+        accent: "#ff6b35",
+        "accent-2": "#ff3b2f",
+      },
+      fontFamily: {
+        serif: ["Georgia", "Times New Roman", "serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       animation: {
-        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "glow": "glow 2s ease-in-out infinite alternate",
-        "slide-up": "slideUp 0.4s ease-out",
+        "slide-up": "slideUp 0.45s ease-out",
         "fade-in": "fadeIn 0.3s ease-out",
+        "pulse-soft": "pulseSoft 2.5s ease-in-out infinite",
+        "spin-slow": "spin 3s linear infinite",
       },
       keyframes: {
-        glow: {
-          "0%": { boxShadow: "0 0 5px rgba(124, 58, 237, 0.3)" },
-          "100%": { boxShadow: "0 0 20px rgba(124, 58, 237, 0.7), 0 0 40px rgba(124, 58, 237, 0.3)" },
-        },
         slideUp: {
-          "0%": { transform: "translateY(10px)", opacity: "0" },
+          "0%": { transform: "translateY(12px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
         fadeIn: {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
+        pulseSoft: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.4" },
+        },
+      },
+      boxShadow: {
+        glow: "0 0 24px rgba(255, 107, 53, 0.25)",
       },
     },
   },

@@ -1,34 +1,66 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   FileText,
-  Users,
-  Layout,
-  Image,
   Film,
   Video,
-  Scissors,
-  CheckCircle,
-  Circle,
+  Check,
+  X,
   Loader2,
+  Terminal,
+  Play,
 } from "lucide-react";
 
-const STAGES = [
-  { id: "screenwriter", label: "Story", icon: FileText, progress_range: [5, 25] },
-  { id: "characters", label: "Characters", icon: Users, progress_range: [20, 35] },
-  { id: "storyboard", label: "Storyboard", icon: Layout, progress_range: [30, 45] },
-  { id: "portraits", label: "Portraits", icon: Image, progress_range: [40, 55] },
-  { id: "frames", label: "Frames", icon: Film, progress_range: [50, 75] },
-  { id: "video", label: "Video", icon: Video, progress_range: [65, 88] },
-  { id: "concat", label: "Done", icon: Scissors, progress_range: [88, 100] },
-];
+// Map stage keys → human-readable labels
+const STAGE_LABELS = {
+  queue: "Hàng đợi",
+  concat: "Ghép cảnh & âm thanh",
+  done: "Hoàn tất",
+};
 
-function getStageState(stage, progress) {
-  const [start, end] = stage.progress_range;
-  if (progress >= end) return "done";
-  if (progress >= start) return "active";
+function sceneLabel(stage) {
+  const m = stage.match(/^scene_(\d+)(?:_(img|vid|done))?$/);
+  if (!m) return STAGE_LABELS[stage] || stage;
+  const [, n, sub] = m;
+  const num = parseInt(n, 10);
+  if (sub === "img") return `Cảnh ${num + 1}: Tạo hình ảnh`;
+  if (sub === "vid") return `Cảnh ${num + 1}: Tạo video`;
+  if (sub === "done") return `Cảnh ${num + 1}: Hoàn thành`;
+  return `Cảnh ${num + 1}`;
+}
+
+function getSceneState(events, idx) {
+  // Check for done / error markers for this scene index
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i];
+    const stage = ev.stage || "";
+    const m = stage.match(/^scene_(\d+)(?:_(img|vid|done))?$/);
+    if (!m) continue;
+    const si = parseInt(m[1], 10);
+    if (si !== idx) continue;
+    const sub = m[2] || "";
+    if (sub === "done") return "done";
+    if (ev.type === "error") return "error";
+  }
+  // Check if any event targets this scene
+  for (const ev of events) {
+    const stage = ev.stage || "";
+    const m2 = stage.match(/^scene_(\d+)(?:_.+)?$/);
+    if (m2 && parseInt(m2[1], 10) === idx) return "active";
+  }
   return "pending";
+}
+
+function getSceneProgress(events, idx) {
+  let max = 0;
+  for (const ev of events) {
+    const stage = ev.stage || "";
+    const m = stage.match(/^scene_(\d+)(?:_.+)?$/);
+    if (!m || parseInt(m[1], 10) !== idx) continue;
+    if (ev.progress > max) max = ev.progress;
+  }
+  return max;
 }
 
 export default function PipelineProgress({
@@ -36,185 +68,261 @@ export default function PipelineProgress({
   currentMessage,
   status,
   logs,
+  events,
+  scenes, // final scene metadata from complete event
+  jobId,
 }) {
   const logsEndRef = useRef(null);
+  const [sceneStates, setSceneStates] = useState([]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+    const total = scenes?.length || events.filter((e) => /^scene_\d+/.test(e.stage)).length;
+    if (total === 0) return;
+    const states = [];
+    for (let i = 0; i < total; i++) {
+      states.push({
+        state: getSceneState(events, i),
+        prog: getSceneProgress(events, i),
+      });
+    }
+    setSceneStates(states);
+  }, [events, scenes]);
+
+  const sceneCount = scenes?.length || sceneStates.length;
+
   return (
-    <div className="space-y-6">
-      {/* Stage timeline */}
-      <div
-        className="p-6 rounded-2xl"
-        style={{
-          backgroundColor: "#12121a",
-          border: "1px solid #1a1a26",
-        }}
-      >
-        <h2 className="text-sm font-semibold mb-6" style={{ color: "#94a3b8" }}>
-          Pipeline Progress
-        </h2>
-
-        {/* Stage nodes */}
-        <div className="flex items-center gap-0">
-          {STAGES.map((stage, i) => {
-            const state =
-              status === "completed"
-                ? "done"
-                : status === "failed"
-                ? getStageState(stage, progress) === "active"
-                  ? "failed"
-                  : getStageState(stage, progress)
-                : getStageState(stage, progress);
-
-            const Icon = stage.icon;
-            const isLast = i === STAGES.length - 1;
-
-            return (
-              <div key={stage.id} className="flex items-center flex-1">
-                {/* Node */}
-                <div className="flex flex-col items-center" style={{ minWidth: 60 }}>
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all"
-                    style={{
-                      backgroundColor:
-                        state === "done"
-                          ? "rgba(124, 58, 237, 0.2)"
-                          : state === "active"
-                          ? "rgba(124, 58, 237, 0.15)"
-                          : state === "failed"
-                          ? "rgba(239, 68, 68, 0.15)"
-                          : "#1a1a26",
-                      border:
-                        state === "done"
-                          ? "2px solid #7c3aed"
-                          : state === "active"
-                          ? "2px solid rgba(124, 58, 237, 0.6)"
-                          : state === "failed"
-                          ? "2px solid rgba(239, 68, 68, 0.6)"
-                          : "2px solid #22223a",
-                      boxShadow:
-                        state === "active"
-                          ? "0 0 12px rgba(124, 58, 237, 0.4)"
-                          : "none",
-                    }}
-                  >
-                    {state === "done" ? (
-                      <CheckCircle size={16} style={{ color: "#7c3aed" }} />
-                    ) : state === "active" ? (
-                      <Loader2
-                        size={16}
-                        className="animate-spin"
-                        style={{ color: "#a78bfa" }}
-                      />
-                    ) : (
-                      <Icon
-                        size={15}
-                        style={{
-                          color:
-                            state === "failed" ? "#f87171" : "#4b5563",
-                        }}
-                      />
-                    )}
-                  </div>
-                  <span
-                    className="text-xs font-medium text-center"
-                    style={{
-                      color:
-                        state === "done"
-                          ? "#a78bfa"
-                          : state === "active"
-                          ? "#e2e8f0"
-                          : state === "failed"
-                          ? "#f87171"
-                          : "#4b5563",
-                    }}
-                  >
-                    {stage.label}
-                  </span>
-                </div>
-
-                {/* Connector line */}
-                {!isLast && (
-                  <div
-                    className="flex-1 h-0.5 mx-1 transition-all"
-                    style={{
-                      backgroundColor:
-                        getStageState(stage, progress) === "done" ||
-                        status === "completed"
-                          ? "#7c3aed"
-                          : "#22223a",
-                      opacity:
-                        getStageState(stage, progress) === "done" ||
-                        status === "completed"
-                          ? 0.6
-                          : 1,
-                    }}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs" style={{ color: "#6b7280" }}>
-              {currentMessage}
-            </span>
+    <div className="space-y-5">
+      {/* Scene progress cards */}
+      {sceneCount > 0 && (
+        <div className="cine-card p-6">
+          <div className="flex items-baseline justify-between mb-5">
+            <h2 className="font-serif text-lg" style={{ color: "var(--ink)" }}>
+              Tiến độ từng cảnh
+            </h2>
             <span
-              className="text-xs font-mono font-bold"
-              style={{ color: "#7c3aed" }}
+              className="font-mono text-sm font-bold"
+              style={{ color: "var(--accent)" }}
+            >
+              {sceneStates.filter((s) => s.state === "done").length}/{sceneCount} cảnh
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {Array.from({ length: sceneCount }).map((_, i) => {
+              const scene = scenes?.[i];
+              const st = sceneStates[i] || { state: "pending", prog: 0 };
+              const isDone = st.state === "done";
+              const isError = st.state === "error";
+              const isActive = st.state === "active";
+
+              return (
+                <div
+                  key={i}
+                  className="rounded-xl overflow-hidden transition-all"
+                  style={{
+                    border: `1px solid ${
+                      isDone
+                        ? "rgba(232,93,42,0.5)"
+                        : isError
+                        ? "rgba(255,59,47,0.4)"
+                        : isActive
+                        ? "var(--accent)"
+                        : "var(--line)"
+                    }`,
+                    backgroundColor: "var(--card)",
+                    boxShadow: isActive
+                      ? "0 0 20px rgba(232,93,42,0.15)"
+                      : "none",
+                  }}
+                >
+                  <div className="flex">
+                    {/* Thumbnail */}
+                    <div
+                      className="w-28 flex-shrink-0 relative overflow-hidden"
+                      style={{
+                        aspectRatio: "16/9",
+                        backgroundColor: "var(--bg-2)",
+                      }}
+                    >
+                      {scene?.visual_url ||
+                      (st.prog > 0 && !isError) ? (
+                        <img
+                          src={
+                            scene?.visual_url ||
+                            `/outputs/${jobId || ""}/scenes/scene_${String(i).padStart(
+                              3,
+                              "0"
+                            )}_thumb.jpg`
+                          }
+                          alt={`Cảnh ${i + 1}`}
+                          className="w-full h-full object-cover"
+                          style={{ opacity: isActive ? 0.6 : 1 }}
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full flex items-center justify-center"
+                          style={{ color: "var(--ink-faint)" }}
+                        >
+                          {isError ? (
+                            <X size={20} />
+                          ) : isActive ? (
+                            <Loader2
+                              size={20}
+                              className="animate-spin"
+                              style={{ color: "var(--accent)" }}
+                            />
+                          ) : (
+                            <Film size={20} />
+                          )}
+                        </div>
+                      )}
+                      {/* Overlay label */}
+                      <div
+                        className="absolute bottom-0 left-0 right-0 px-2 py-1 text-[10px] font-mono font-bold"
+                        style={{
+                          background:
+                            "linear-gradient(transparent, rgba(0,0,0,0.7))",
+                          color: "#fff",
+                        }}
+                      >
+                        Cảnh {i + 1}
+                      </div>
+                      {isDone && (
+                        <div
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(34,197,94,0.9)" }}
+                        >
+                          <Check size={11} style={{ color: "#fff" }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 p-3 flex flex-col justify-center gap-1.5">
+                      <p
+                        className="text-sm font-semibold leading-tight"
+                        style={{ color: isDone ? "var(--ink)" : isError ? "var(--accent-2)" : "var(--ink-soft)" }}
+                      >
+                        {scene?.title || `Cảnh ${i + 1}`}
+                      </p>
+                      <p
+                        className="text-[11px] leading-relaxed line-clamp-2"
+                        style={{ color: "var(--ink-faint)" }}
+                      >
+                        {scene?.script?.slice(0, 80) ||
+                          scene?.visual_desc?.slice(0, 80) ||
+                          (isActive ? "Đang xử lý…" : "Chờ xử lý")}
+                      </p>
+                      {/* Progress bar */}
+                      <div
+                        className="h-1.5 rounded-full overflow-hidden"
+                        style={{ backgroundColor: "var(--line)" }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${isDone ? 100 : st.prog}%`,
+                            background: isDone
+                              ? "linear-gradient(90deg, #22c55e, #4ade80)"
+                              : isActive
+                              ? "linear-gradient(90deg, var(--accent), var(--accent-2))"
+                              : "var(--line)",
+                          }}
+                        />
+                      </div>
+                      <p
+                        className="text-[10px] font-mono"
+                        style={{
+                          color: isDone
+                            ? "#22c55e"
+                            : isError
+                            ? "#ff8a7a"
+                            : "var(--ink-faint)",
+                        }}
+                      >
+                        {isDone
+                          ? "✓ Hoàn thành"
+                          : isError
+                          ? "✗ Lỗi"
+                          : isActive
+                          ? `${st.prog}%`
+                          : `Cảnh ${i + 1}/${sceneCount}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Overall progress (only shown if no individual scene data yet) */}
+      {sceneCount === 0 && (
+        <div className="cine-card p-6">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="font-serif text-lg" style={{ color: "var(--ink)" }}>
+              Tiến độ sản xuất
+            </h2>
+            <span
+              className="font-mono text-sm font-bold"
+              style={{ color: "var(--accent)" }}
             >
               {progress}%
             </span>
           </div>
           <div
-            className="w-full h-1.5 rounded-full overflow-hidden"
-            style={{ backgroundColor: "#1a1a26" }}
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: "var(--line)" }}
           >
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${progress}%`,
                 background:
-                  status === "failed"
-                    ? "#ef4444"
-                    : "linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%)",
-                boxShadow:
-                  status !== "failed"
-                    ? "0 0 8px rgba(124, 58, 237, 0.5)"
-                    : "none",
+                  "linear-gradient(90deg, var(--accent), var(--accent-2))",
               }}
             />
           </div>
+          <p className="mt-3 text-sm" style={{ color: "var(--ink-soft)" }}>
+            {currentMessage}
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Live logs */}
       {logs.length > 0 && (
         <div
           className="rounded-2xl overflow-hidden"
           style={{
-            backgroundColor: "#0d0d14",
-            border: "1px solid #1a1a26",
+            backgroundColor: "var(--bg-2)",
+            border: "1px solid var(--line)",
           }}
         >
           <div
             className="px-4 py-3 flex items-center gap-2"
-            style={{ borderBottom: "1px solid #1a1a26" }}
+            style={{ borderBottom: "1px solid var(--line)" }}
           >
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs font-medium" style={{ color: "#6b7280" }}>
-              Pipeline Log
+            <Terminal size={13} style={{ color: "var(--accent)" }} />
+            <div
+              className="rec-dot w-2 h-2 rounded-full"
+              style={{ backgroundColor: "#22c55e" }}
+            />
+            <span
+              className="text-[11px] font-mono uppercase tracking-widest"
+              style={{ color: "var(--ink-faint)" }}
+            >
+              Nhật ký quy trình
             </span>
           </div>
           <div
             className="p-4 max-h-48 overflow-y-auto font-mono text-xs space-y-1"
-            style={{ color: "#64748b" }}
+            style={{ color: "var(--ink-soft)" }}
           >
             {logs.map((log, i) => (
               <div
@@ -223,13 +331,18 @@ export default function PipelineProgress({
                 style={{
                   color:
                     log.type === "complete"
-                      ? "#86efac"
+                      ? "#4ade80"
                       : log.type === "error"
-                      ? "#fca5a5"
-                      : "#94a3b8",
+                      ? "#ff8a7a"
+                      : "var(--ink-soft)",
                 }}
               >
-                <span style={{ color: "#374151", flexShrink: 0 }}>{log.time}</span>
+                <span
+                  style={{ color: "var(--ink-faint)", flexShrink: 0 }}
+                  className="timecode"
+                >
+                  {log.time}
+                </span>
                 <span>{log.message}</span>
               </div>
             ))}

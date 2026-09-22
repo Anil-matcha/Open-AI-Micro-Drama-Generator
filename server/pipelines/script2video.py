@@ -6,21 +6,35 @@ from typing import Callable, Awaitable, List, Optional
 from agents.storyboard_artist import StoryboardArtist
 from interfaces.character import CharacterInScene
 from interfaces.shot import ShotDescription
-from tools.muapi_image_generator import MuAPIImageGenerator
-from tools.muapi_video_generator import MuAPIVideoGenerator
-from tools.muapi_uploader import upload_image_from_url
+from tools.agnes_image_generator import AgnesImageGenerator
+from tools.agnes_video_generator import AgnesVideoGenerator
+from tools.vast_video_generator import VastVideoGenerator
+from tools.agnes_uploader import upload_image_from_url
 from utils.video import concatenate_videos, download_video
 
 
 ProgressCallback = Callable[[str, str, int], Awaitable[None]]
 
 
+def make_video_generator(api_key: str):
+    """Pick the video backend from env: VIDEO_PROVIDER=agnes (default) | vast."""
+    provider = os.environ.get("VIDEO_PROVIDER", "agnes").lower()
+    if provider == "vast":
+        return VastVideoGenerator(api_key=os.environ.get("VAST_API_KEY"))
+    return AgnesVideoGenerator(api_key=api_key)
+
+
 class Script2VideoPipeline:
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ["MUAPI_KEY"]
+        self.api_key = api_key or os.environ.get("AGNES_API_KEY", "")
+        if not self.api_key:
+            raise RuntimeError(
+                "AGNES_API_KEY not set. Put it in server/.env "
+                "(or point AGNES_API_KEY at your Agnes token)."
+            )
         self.storyboard_artist = StoryboardArtist()
-        self.image_gen = MuAPIImageGenerator(api_key=self.api_key)
-        self.video_gen = MuAPIVideoGenerator(api_key=self.api_key)
+        self.image_gen = AgnesImageGenerator(api_key=self.api_key)
+        self.video_gen = make_video_generator(self.api_key)
 
     async def run(
         self,
@@ -75,6 +89,13 @@ class Script2VideoPipeline:
             ShotDescription(**s.model_dump()) for s in shots_brief
         ]
 
+        # Free-tier Agnes allows ~1 video generation per minute. Cap shots
+        # so one pipeline run stays within the limit.
+        MAX_SHOTS = int(os.environ.get("MAX_SHOTS", "1"))
+        if len(shots) > MAX_SHOTS:
+            print(f"[Script2Video] capping shots {len(shots)} -> {MAX_SHOTS} (free-tier rate limit)")
+            shots = shots[:MAX_SHOTS]
+
         # Step 3: Generate first frames sequentially (to maintain visual order)
         frame_progress_step = int(progress_range * 0.35 / max(len(shots), 1))
         for i, shot in enumerate(shots):
@@ -88,7 +109,8 @@ class Script2VideoPipeline:
             )
             shot.first_frame_url = frame_url
 
-        # Step 4: Generate videos in parallel
+        # Step 4: Generate videos (sequential to avoid 429 rate-limit / full queue
+        # on the Agnes video endpoint; the generator itself retries on 429/503)
         await progress_callback(
             "video",
             f"Generating videos for scene {scene_idx + 1}...",
@@ -99,7 +121,13 @@ class Script2VideoPipeline:
             for i, shot in enumerate(shots)
             if shot.first_frame_url
         ]
-        video_results = await asyncio.gather(*video_tasks, return_exceptions=True)
+        video_results = []
+        for task in video_tasks:
+            try:
+                video_results.append(await task)
+            except Exception as e:
+                print(f"Warning: video generation failed: {e}")
+                video_results.append(e)
 
         shot_video_paths = []
         for i, result in enumerate(video_results):
@@ -189,13 +217,9 @@ class Script2VideoPipeline:
         # Build video prompt from motion + audio descriptions
         video_prompt = f"{shot.motion_desc}. {shot.audio_desc}"
 
-        # Upload the first frame to get a stable MuAPI URL if needed
+        # Upload the first frame to get a stable Agnes URL if needed
         frame_url = shot.first_frame_url
-        if not frame_url.startswith("https://api.muapi.ai"):
-            try:
-                frame_url = await upload_image_from_url(frame_url, self.api_key)
-            except Exception as e:
-                print(f"Warning: re-upload failed, using original URL: {e}")
+        frame_url = await upload_image_from_url(frame_url, self.api_key)
 
         video_url = await self.video_gen.generate_video_from_image(
             video_prompt, frame_url, duration=5, aspect_ratio="16:9"

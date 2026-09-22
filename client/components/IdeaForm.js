@@ -1,26 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, ChevronDown, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, FileText, PenLine } from "lucide-react";
 
 const STYLES = [
-  { value: "Cinematic", label: "Cinematic", desc: "Epic film quality" },
-  { value: "Realistic", label: "Realistic", desc: "True-to-life" },
-  { value: "Anime", label: "Anime", desc: "Japanese animation" },
-  { value: "Fantasy", label: "Fantasy", desc: "Magical & fantastical" },
-  { value: "Documentary", label: "Documentary", desc: "Journalistic style" },
+  { value: "Cinematic", label: "Điện ảnh", desc: "Chất phim nhựa" },
+  { value: "Realistic", label: "Thực tế", desc: "Tinh tế, đời" },
+  { value: "Anime", label: "Anime", desc: "Hoạt hình Nhật" },
+  { value: "Fantasy", label: "Siêu thực", desc: "Phép thuật & kỳ ảo" },
+  { value: "Documentary", label: "Tài liệu", desc: "Phong cách báo chí" },
 ];
 
 const MODES = [
   {
     value: "idea2video",
-    label: "Idea to Video",
-    desc: "Full agentic pipeline: story, scenes, storyboard, video",
+    label: "Ý tưởng → Video",
+    icon: Sparkles,
+    desc: "Quy trình đầy đủ: cốt truyện, phân cảnh, storyboard, video",
   },
   {
     value: "script2video",
-    label: "Script to Video",
-    desc: "Start from your own scene script",
+    label: "Kịch bản → Video",
+    icon: FileText,
+    desc: "Xuất phát từ kịch bản phân cảnh của bạn",
   },
 ];
 
@@ -31,9 +33,12 @@ export default function IdeaForm({ onSubmit, isSubmitting }) {
   const [mode, setMode] = useState("idea2video");
   const [script, setScript] = useState("");
 
+  const canSubmit =
+    idea.trim() || (mode === "script2video" && script.trim());
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!idea.trim() && (mode !== "script2video" || !script.trim())) return;
+    if (!canSubmit) return;
     onSubmit({
       idea: idea.trim(),
       user_requirement: userRequirement.trim(),
@@ -43,181 +48,217 @@ export default function IdeaForm({ onSubmit, isSubmitting }) {
     });
   };
 
-  const inputStyle = {
-    backgroundColor: "#12121a",
-    border: "1px solid #22223a",
-    borderRadius: "12px",
-    color: "#e2e8f0",
-    padding: "12px 16px",
+  const fieldStyle = {
+    backgroundColor: "var(--card)",
+    border: "1px solid var(--line)",
+    borderRadius: "10px",
+    color: "var(--ink)",
+    padding: "12px 14px",
     width: "100%",
     fontSize: "14px",
-    transition: "border-color 0.2s",
     outline: "none",
     resize: "vertical",
+    transition: "border-color 0.2s, box-shadow 0.2s",
   };
 
   const labelStyle = {
     display: "block",
-    fontSize: "13px",
-    fontWeight: "500",
+    fontSize: "11px",
+    fontWeight: "600",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
     marginBottom: "8px",
-    color: "#94a3b8",
+    color: "var(--ink-soft)",
+    fontFamily: "var(--font-mono)",
+  };
+
+  const onFocus = (e) => {
+    e.target.style.borderColor = "var(--accent)";
+    e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.15)";
+  };
+  const onBlur = (e) => {
+    e.target.style.borderColor = "var(--line)";
+    e.target.style.boxShadow = "none";
   };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl p-6 space-y-6"
-      style={{
-        backgroundColor: "#12121a",
-        border: "1px solid #1a1a26",
-      }}
+      className="cine-card overflow-hidden"
     >
-      {/* Mode selector */}
-      <div>
-        <label style={labelStyle}>Generation Mode</label>
-        <div className="grid grid-cols-2 gap-3">
-          {MODES.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => setMode(m.value)}
-              className="text-left p-4 rounded-xl transition-all"
-              style={{
-                backgroundColor: mode === m.value ? "rgba(124, 58, 237, 0.15)" : "#1a1a26",
-                border: mode === m.value
-                  ? "1px solid rgba(124, 58, 237, 0.5)"
-                  : "1px solid #22223a",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                className="text-sm font-semibold mb-1"
-                style={{ color: mode === m.value ? "#a78bfa" : "#e2e8f0" }}
-              >
-                {m.label}
-              </div>
-              <div className="text-xs" style={{ color: "#6b7280" }}>
-                {m.desc}
-              </div>
-            </button>
-          ))}
+      {/* Slug line header */}
+      <div
+        className="flex items-center justify-between px-5 py-3.5"
+        style={{ borderBottom: "1px solid var(--line)" }}
+      >
+        <div className="flex items-center gap-2">
+          <PenLine size={15} style={{ color: "var(--accent)" }} />
+          <span className="text-sm font-semibold" style={{ color: "var(--ink)" }}>
+            Bảng điều khiển sản xuất
+          </span>
         </div>
+        <span
+          className="font-mono text-[10px] uppercase tracking-widest"
+          style={{ color: "var(--ink-faint)" }}
+        >
+          Bản nháp 01
+        </span>
       </div>
 
-      {/* Idea input */}
-      <div>
-        <label style={labelStyle}>
-          {mode === "script2video" ? "Brief idea or title" : "Your Idea *"}
-        </label>
-        <textarea
-          value={idea}
-          onChange={(e) => setIdea(e.target.value)}
-          placeholder={
-            mode === "idea2video"
-              ? "e.g. A lone astronaut discovers an ancient alien structure on Mars..."
-              : "Brief title or concept for your video"
-          }
-          rows={3}
-          required={mode === "idea2video"}
-          style={inputStyle}
-          onFocus={(e) => (e.target.style.borderColor = "#7c3aed")}
-          onBlur={(e) => (e.target.style.borderColor = "#22223a")}
-        />
-      </div>
-
-      {/* Script input (script2video only) */}
-      {mode === "script2video" && (
+      <div className="p-5 space-y-6">
+        {/* Mode selector */}
         <div>
-          <label style={labelStyle}>Scene Script *</label>
+          <span style={labelStyle}>Cách làm</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {MODES.map((m) => {
+              const active = mode === m.value;
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMode(m.value)}
+                  className="text-left p-4 rounded-xl transition-all"
+                  style={{
+                    backgroundColor: active ? "rgba(255, 107, 53, 0.08)" : "var(--card)",
+                    border: active ? "1.5px solid var(--accent)" : "1px solid var(--line)",
+                    boxShadow: active ? "0 0 20px rgba(255, 107, 53, 0.15)" : "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    className="flex items-center gap-2 text-sm font-semibold mb-1.5"
+                    style={{ color: active ? "var(--accent)" : "var(--ink)" }}
+                  >
+                    <Icon size={15} />
+                    {m.label}
+                  </div>
+                  <div className="text-xs leading-relaxed" style={{ color: "var(--ink-faint)" }}>
+                    {m.desc}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Idea input */}
+        <div>
+          <label style={labelStyle}>
+            {mode === "script2video" ? "Ý tưởng ngắn hoặc tiêu đề" : "Ý tưởng của bạn *"}
+          </label>
           <textarea
-            value={script}
-            onChange={(e) => setScript(e.target.value)}
-            placeholder="Write your scene script here. Be descriptive about setting, characters, actions, and mood..."
-            rows={6}
-            required
-            style={inputStyle}
-            onFocus={(e) => (e.target.style.borderColor = "#7c3aed")}
-            onBlur={(e) => (e.target.style.borderColor = "#22223a")}
+            value={idea}
+            onChange={(e) => setIdea(e.target.value)}
+            placeholder={
+              mode === "idea2video"
+                ? "VD: Một du hành vũ trụ cô độc phát hiện một công trình người ngoài hành tinh cổ xưa trên Sao Hoả..."
+                : "Tiêu đề hoặc ý tưởng chính cho video của bạn"
+            }
+            rows={3}
+            required={mode === "idea2video"}
+            style={fieldStyle}
+            onFocus={onFocus}
+            onBlur={onBlur}
           />
         </div>
-      )}
 
-      {/* Style selector */}
-      <div>
-        <label style={labelStyle}>Visual Style</label>
-        <div className="grid grid-cols-5 gap-2">
-          {STYLES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              onClick={() => setStyle(s.value)}
-              className="p-3 rounded-xl text-center transition-all"
-              style={{
-                backgroundColor: style === s.value ? "rgba(124, 58, 237, 0.15)" : "#1a1a26",
-                border: style === s.value
-                  ? "1px solid rgba(124, 58, 237, 0.5)"
-                  : "1px solid #22223a",
-                cursor: "pointer",
-              }}
-            >
-              <div
-                className="text-xs font-semibold mb-1"
-                style={{ color: style === s.value ? "#a78bfa" : "#e2e8f0" }}
-              >
-                {s.label}
-              </div>
-              <div className="text-xs" style={{ color: "#4b5563", fontSize: "10px" }}>
-                {s.desc}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Additional requirements */}
-      <div>
-        <label style={labelStyle}>
-          Additional Requirements{" "}
-          <span style={{ color: "#4b5563", fontWeight: 400 }}>(optional)</span>
-        </label>
-        <textarea
-          value={userRequirement}
-          onChange={(e) => setUserRequirement(e.target.value)}
-          placeholder="Any specific instructions, mood, pacing, color palette, character details..."
-          rows={2}
-          style={inputStyle}
-          onFocus={(e) => (e.target.style.borderColor = "#7c3aed")}
-          onBlur={(e) => (e.target.style.borderColor = "#22223a")}
-        />
-      </div>
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={isSubmitting || (!idea.trim() && (mode !== "script2video" || !script.trim()))}
-        className="w-full py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-        style={{
-          background: isSubmitting
-            ? "#3b3b5c"
-            : "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
-          color: isSubmitting ? "#6b7280" : "white",
-          cursor: isSubmitting ? "not-allowed" : "pointer",
-          boxShadow: isSubmitting ? "none" : "0 4px 20px rgba(124, 58, 237, 0.4)",
-        }}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            Starting pipeline...
-          </>
-        ) : (
-          <>
-            <Sparkles size={16} />
-            Generate Video
-          </>
+        {/* Script input (script2video only) */}
+        {mode === "script2video" && (
+          <div>
+            <label style={labelStyle}>Kịch bản phân cảnh *</label>
+            <textarea
+              value={script}
+              onChange={(e) => setScript(e.target.value)}
+              placeholder="NHÀ - NGÀY. Nhân vật cúi xuống trước công trình, tay cầm thiết bị..."
+              rows={6}
+              required
+              style={{ ...fieldStyle, fontFamily: "var(--font-serif)" }}
+              onFocus={onFocus}
+              onBlur={onBlur}
+            />
+          </div>
         )}
-      </button>
+
+        {/* Style selector */}
+        <div>
+          <span style={labelStyle}>Phong cách hình ảnh</span>
+          <div className="flex flex-wrap gap-2">
+            {STYLES.map((s) => {
+              const active = style === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setStyle(s.value)}
+                  title={s.desc}
+                  className="px-4 py-2 rounded-full text-sm transition-all"
+                  style={{
+                    backgroundColor: active ? "var(--accent)" : "var(--card)",
+                    color: active ? "#fff" : "var(--ink-soft)",
+                    border: active ? "1.5px solid var(--accent)" : "1px solid var(--line)",
+                    fontWeight: active ? "700" : "400",
+                    cursor: "pointer",
+                  }}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Additional requirements */}
+        <div>
+          <label style={labelStyle}>
+            Ghi chú chỉ đạo{" "}
+            <span
+              className="normal-case font-normal"
+              style={{ color: "var(--ink-faint)", letterSpacing: "normal" }}
+            >
+              (tuỳ chọn)
+            </span>
+          </label>
+          <textarea
+            value={userRequirement}
+            onChange={(e) => setUserRequirement(e.target.value)}
+            placeholder="Tâm trạng, nhịp độ, bảng màu, chi tiết nhân vật, cách quay..."
+            rows={2}
+            style={fieldStyle}
+            onFocus={onFocus}
+            onBlur={onBlur}
+          />
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isSubmitting || !canSubmit}
+          className="w-full py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all uppercase tracking-wider"
+          style={{
+            background: canSubmit
+              ? "linear-gradient(135deg, #e85d2a 0%, #c43e1a 100%)"
+              : "#2a2721",
+            color: canSubmit ? "#fff" : "var(--ink-faint)",
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            boxShadow: canSubmit
+              ? "0 6px 24px rgba(255, 107, 53, 0.4)"
+              : "none",
+          }}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Đang khởi động quy trình...
+            </>
+          ) : (
+            <>
+              <Sparkles size={16} />
+              Tạo video
+            </>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

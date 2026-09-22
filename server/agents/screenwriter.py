@@ -2,7 +2,7 @@ import json
 import os
 from typing import List
 
-from tools.muapi_llm import MuAPILLM
+from tools.agnes_llm import AgnesLLM
 
 _FALLBACK_STORY = """
 Title: The Last Signal
@@ -44,7 +44,7 @@ _FALLBACK_SCENES = json.dumps({
 
 class Screenwriter:
     def __init__(self):
-        self.llm = MuAPILLM()
+        self.llm = AgnesLLM()
 
     async def develop_story(self, idea: str, user_requirement: str) -> str:
         system_prompt = (
@@ -71,7 +71,7 @@ Write a detailed story outline that can be translated into a short video. Includ
 Write the story outline as flowing prose."""
 
         return await self.llm.complete(
-            prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_STORY
+            prompt, system_prompt=system_prompt, timeout=300, fallback=_FALLBACK_STORY
         )
 
     async def write_script_based_on_story(self, story: str, user_requirement: str) -> List[str]:
@@ -106,12 +106,34 @@ Rules:
 - Include character actions, dialogue, and environmental details"""
 
         raw = await self.llm.complete(
-            prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_SCENES
+            prompt, system_prompt=system_prompt, timeout=300, fallback=_FALLBACK_SCENES
         )
         raw = raw.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
-            if raw.startswith("json"):
+            if raw.lower().startswith("json"):
                 raw = raw[4:]
-        data = json.loads(raw)
+
+        # Tolerant parse: Agnes may return slightly malformed JSON.
+        data = None
+        for attempt in (raw, self._repair_json(raw)):
+            try:
+                data = json.loads(attempt)
+                break
+            except json.JSONDecodeError:
+                continue
+        if data is None:
+            print("[Screenwriter] JSON parse failed — using fallback scenes.")
+            data = json.loads(_FALLBACK_SCENES)
         return [scene["script"] for scene in data.get("scenes", [])]
+
+    @staticmethod
+    def _repair_json(raw: str) -> str:
+        """Strip trailing commas and surrounding fence artefacts."""
+        import re
+        text = raw.strip()
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start:end + 1]
+        return text

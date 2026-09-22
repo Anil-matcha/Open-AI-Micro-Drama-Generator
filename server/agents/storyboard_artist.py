@@ -4,7 +4,7 @@ from typing import List
 
 from interfaces.character import CharacterInScene
 from interfaces.shot import ShotBriefDescription
-from tools.muapi_llm import MuAPILLM
+from tools.agnes_llm import AgnesLLM
 
 _FALLBACK_STORYBOARD = json.dumps({
     "shots": [
@@ -48,7 +48,7 @@ _FALLBACK_STORYBOARD = json.dumps({
 
 class StoryboardArtist:
     def __init__(self):
-        self.llm = MuAPILLM()
+        self.llm = AgnesLLM()
 
     async def design_storyboard(
         self,
@@ -96,12 +96,44 @@ Rules:
 - Start with an establishing shot, include action shots, end with a closing shot"""
 
         raw = await self.llm.complete(
-            prompt, system_prompt=system_prompt, timeout=120, fallback=_FALLBACK_STORYBOARD
+            prompt, system_prompt=system_prompt, timeout=300, fallback=_FALLBACK_STORYBOARD
         )
         raw = raw.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
-            if raw.startswith("json"):
+            if raw.lower().startswith("json"):
                 raw = raw[4:]
-        data = json.loads(raw)
-        return [ShotBriefDescription(**s) for s in data.get("shots", [])]
+
+        # Tolerant JSON parse: Agnes sometimes returns slightly malformed JSON
+        # (trailing commas / unescaped quotes). Try progressively more repairs.
+        data = None
+        for attempt in (raw, self._repair_json(raw)):
+            try:
+                data = json.loads(attempt)
+                break
+            except json.JSONDecodeError:
+                continue
+        if data is None:
+            print("[StoryboardArtist] JSON parse failed — using fallback storyboard.")
+            data = json.loads(_FALLBACK_STORYBOARD)
+        shots = data.get("shots", [])
+        out = []
+        for s in shots:
+            try:
+                out.append(ShotBriefDescription(**s))
+            except Exception as e:
+                print(f"[StoryboardArtist] skipping malformed shot {s}: {e}")
+        return out
+
+    @staticmethod
+    def _repair_json(raw: str) -> str:
+        """Strip trailing commas and surrounding fence artefacts."""
+        import re
+        text = raw.strip()
+        # remove trailing commas before } or ]
+        text = re.sub(r",\s*([}\]])", r"\1", text)
+        # drop everything before first { and after last }
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start:end + 1]
+        return text
